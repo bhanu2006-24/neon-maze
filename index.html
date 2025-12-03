@@ -158,11 +158,9 @@
             position: absolute;
             top: 0;
             left: 0;
-            white-space: nowrap;
-            color: #00ccff;
-            font-weight: bold;
-            font-size: 1.2rem;
-            transition: transform 0.1s linear;
+            width: 100%;
+            height: 100%;
+            background-repeat: repeat-x;
         }
 
         /* Bars Container */
@@ -254,9 +252,7 @@
     <div id="hud">
         <div id="crosshair"></div>
         <div id="compass-container">
-            <div id="compass-strip">
-                N . . . NE . . . E . . . SE . . . S . . . SW . . . W . . . NW . . . N . . . NE . . . E
-            </div>
+            <div id="compass-strip"></div>
         </div>
 
         <div id="info-panel">
@@ -531,6 +527,45 @@
             lasers.push({ mesh: laser, active: true, axis: isX ? 'x' : 'z', pos: new THREE.Vector3(pos.x * UNIT_SIZE, laserHeight, pos.z * UNIT_SIZE) });
         }
 
+        // --- COMPASS TEXTURE ---
+        function createCompassTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1800; // 5px per degree
+            canvas.height = 30;
+            const ctx = canvas.getContext('2d');
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#00ccff';
+            ctx.font = 'bold 16px "Courier New", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const directions = [
+                { label: 'N', deg: 0 },
+                { label: 'NE', deg: 45 },
+                { label: 'E', deg: 90 },
+                { label: 'SE', deg: 135 },
+                { label: 'S', deg: 180 },
+                { label: 'SW', deg: 225 },
+                { label: 'W', deg: 270 },
+                { label: 'NW', deg: 315 }
+            ];
+
+            for (let i = 0; i < 360; i += 15) {
+                const x = i * 5;
+                const dir = directions.find(d => d.deg === i);
+                if (dir) {
+                    ctx.fillText(dir.label, x, 15);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(x, 15, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            return canvas.toDataURL();
+        }
+
         // --- INIT ---
         function init() {
             scene = new THREE.Scene();
@@ -559,6 +594,10 @@
 
             mazeGrid = generateMaze(MAZE_SIZE, MAZE_SIZE);
             buildMazeGeometry();
+
+            compassStrip.style.backgroundImage = `url(${createCompassTexture()})`;
+            compassStrip.style.backgroundPositionX = '150px';
+
             setupControls();
 
             window.addEventListener('resize', onWindowResize);
@@ -778,9 +817,9 @@
                     camera.rotation.y -= event.movementX * 0.002;
                     camera.rotation.x -= event.movementY * 0.002;
                     camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
-                    const deg = (camera.rotation.y * (180 / Math.PI)) % 360;
-                    const offset = deg * 5;
-                    compassStrip.style.transform = `translateX(${-300 + offset}px)`;
+                    
+                    const deg = camera.rotation.y * (180 / Math.PI);
+                    compassStrip.style.backgroundPositionX = (150 + deg * 5) + 'px';
                 }
             });
         }
@@ -830,6 +869,7 @@
 
             camera.position.set(1 * UNIT_SIZE, 5, 1 * UNIT_SIZE);
             camera.rotation.set(0, 0, 0);
+            compassStrip.style.backgroundPositionX = '150px';
             velocity.set(0, 0, 0);
 
             orbs.forEach(orb => { orb.active = true; orb.mesh.visible = true; });
